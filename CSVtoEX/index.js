@@ -3,8 +3,8 @@ import csvParser from 'csv-parser';
 import ExcelJS from 'exceljs';
 
 // Define input and output file paths
-const csvFilePath = './5k to 11k.csv';
-const excelFilePath = '5k to 11k.xlsx';
+const csvFilePath = './CSVtoEx/cin name 6k to 12k (1).csv';
+const excelFilePath = './CSVtoEx/cin name 6k to 12k (1).xlsx';
 
 // Function to convert CSV to Excel
 async function convertCsvToExcel(csvFilePath, excelFilePath) {

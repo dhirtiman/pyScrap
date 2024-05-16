@@ -1,0 +1,16 @@
+{
+  "name": "pyscrap",
+  "version": "1.0.0",
+  "description": "This Python script is designed to update company emails in a CSV file by scraping information from the Finavo website.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "csv-parser": "^3.0.0",
+    "exceljs": "^4.4.0"
+  }
+}

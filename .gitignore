@@ -4,3 +4,6 @@ input
 output
 fail
 downloadFromSite
+downloadTo1CSV
+*.csv
+*.xlsx

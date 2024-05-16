@@ -7,14 +7,14 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.keys import Keys
 from multiprocessing import Lock, Process, Queue
 import os
-
+import shutil
 
 def extract_company_info(cin_queue, lock, counter):
     download_dir = "C:\\Users\\dhirt\\Desktop\\pyScrap\\downloadFromSite"
-    # Update this path
-   # Verify the download directory
+    # Verify the download directory
     if not os.path.exists(download_dir):
         print(f"Creating download directory: {download_dir}")
         os.makedirs(download_dir)
@@ -23,30 +23,32 @@ def extract_company_info(cin_queue, lock, counter):
 
     # Initialize the Selenium webdriver with Chrome options
     chrome_options = Options()
-    # Minimize the browser window
-
+    main_download_dir = download_dir+"\\download"
     prefs = {
-        "download.default_directory": download_dir,
+        "download.default_directory": main_download_dir,
         "download.prompt_for_download": False,
         "directory_upgrade": True,
         "safebrowsing.enabled": True
     }
-    
     chrome_options.add_experimental_option("prefs", prefs)
 
     driver = webdriver.Chrome(options=chrome_options)
     print("Chrome WebDriver initialized with download directory:", download_dir)
 
     try:
-        driver.get("https://finanvo.in/")  # Replace the URL here
+        driver.get("https://finanvo.in/company/profile/ACG-4904/INIYA-AESTHETICS-&-WELLNESS-CLINIC-LLP")  # Replace the URL here
 
         while not cin_queue.empty():
             cin = cin_queue.get()
 
+            if alreadyDownloaded(download_dir, cin):
+                print(f"Skipping for {cin}: It is already downloaded.")
+                continue
+
             # Attempt to extract email, retrying if unsuccessful
             while True:
                 try:
-                    driver.get("https://finanvo.in/")
+                    
                     # Find the search input field and enter the CIN number
                     search_input = WebDriverWait(driver, 20).until(
                         EC.presence_of_element_located(
@@ -54,56 +56,31 @@ def extract_company_info(cin_queue, lock, counter):
                     )
                     search_input.clear()
                     search_input.send_keys(cin)
-
-                    # Introduce a 1-second delay (you may need to adjust this duration)
+                    search_input.send_keys(Keys.ENTER)
+                    
                     time.sleep(3)
-
-                    # Click the search button using JavaScript to handle Angular behavior
+                    
                     driver.execute_script(
-                        'document.querySelector("button[style*=\'background-color: rgb(112, 170, 56)\']").click()')
+                        'document.querySelector("#ngb-typeahead-0-0 > ngb-highlight > span").click()')
 
-                    # Wait for the company name link to be clickable
-                    company_name_link = WebDriverWait(driver, 20).until(
-                        EC.element_to_be_clickable(
-                            (By.XPATH, '//a[@href="javascript:void(0)"]'))
-                    )
-
-                    # Execute JavaScript to click on the company name link
-                    driver.execute_script(
-                        "arguments[0].click();", company_name_link)
 
                     # Wait for the page to load (you may need to adjust the duration)
                     time.sleep(3)
-
-                    drop_down_button = WebDriverWait(driver, 20).until(
-                        EC.element_to_be_clickable(
-                            (By.XPATH,
-                             '//*[@id="section-about"]/app-about/div[1]/div[2]/div[1]/div/div[1]'))
-                    )
+                    
+                    # Download the CSV file
                     driver.execute_script(
-                        "arguments[0].click();", drop_down_button)
-
-                    time.sleep(1)
-
-                    csv_downloadLink = WebDriverWait(driver, 20).until(
-                        EC.element_to_be_clickable(
-                            (By.XPATH, '//*[@id="section-about"]/app-about/div[1]/div[2]/div[1]/div/div[1]/ul/li[2]/a'))
-                    )
-
-                    driver.execute_script(
-                        "arguments[0].click();", csv_downloadLink)
+                        'document.querySelector("#section-about > app-about > div.flex-row.flex-space-between.flex-gap-8 > div.col-lg-4.col-xl-4.col-12.p-0.print-hide > div:nth-child(1) > div > div:nth-child(1) > ul > li:nth-child(3) > a").click()')
 
                     # Wait for the download to complete
-                    time.sleep(5)
+                    time.sleep(3)
 
-                    files = os.listdir(download_dir)
-                    print("Downloaded files: ", files)
+                    
 
                     lock.acquire()
                     try:
                         print("Processing CIN:", cin)
-                        # counter.value += 1
-                        # print(f"Email for CIN {cin}: {updated_email} - Count: {counter.value}")
+                        filename = max([os.path.join(main_download_dir, f) for f in os.listdir(main_download_dir)], key=os.path.getctime)
+                        shutil.move(filename, os.path.join(download_dir, cin + ".csv"))
                     finally:
                         lock.release()
 
@@ -119,6 +96,9 @@ def extract_company_info(cin_queue, lock, counter):
         # Close the browser window when done
         driver.quit()
 
+def alreadyDownloaded(download_dir, cin):
+    file_path = os.path.join(download_dir, cin + ".csv")
+    return os.path.exists(file_path)
 
 # Read the CIN numbers from the CSV file
 csvFile = 'input/cin name 6k to 12k (1).csv'
@@ -126,8 +106,6 @@ firstCol = 'Company names'
 secondCol = 'emails'
 
 max_processes = 1  # Adjust this number as needed
-
-# Set download directory
 
 # Create a lock to ensure exclusive access to the CSV file
 lock = Lock()
@@ -147,7 +125,7 @@ if __name__ == '__main__':
     processes = []
     for _ in range(max_processes):
         process = Process(target=extract_company_info, args=(
-            cin_queue, lock, counter, ))
+            cin_queue, lock, counter))
         process.start()
         processes.append(process)
 
